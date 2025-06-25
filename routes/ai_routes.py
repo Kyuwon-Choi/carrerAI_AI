@@ -2,6 +2,8 @@ from flask import request
 from flask_restx import Namespace, Resource, fields
 from services.ai_model_service import AIModelService
 import logging
+import uuid
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +29,11 @@ analysis_request_model = api.model('AnalysisRequest', {
 })
 
 analysis_response_model = api.model('AnalysisResponse', {
-    'success': fields.Boolean(description='성공 여부'),
+    'user_id': fields.Integer(description='사용자 ID'),
+    'recruitment_id': fields.Integer(description='채용공고 ID'),
+    'job_category': fields.String(description='직무 카테고리'),
+    'prediction_id': fields.String(description='예측 ID'),
+    'prediction_time': fields.String(description='예측 시간'),
     'probabilities': fields.Raw(description='기업별 확률 (퍼센트)'),
     'top_company': fields.String(description='가장 높은 확률의 기업'),
     'top_probability': fields.Float(description='가장 높은 확률'),
@@ -67,7 +73,11 @@ class AnalyzeProbabilityResource(Resource):
         - award_score: 수상경험점수
         
         반환 데이터:
-        - success: 성공 여부
+        - user_id: 사용자 ID
+        - recruitment_id: 채용공고 ID
+        - job_category: 직무 카테고리
+        - prediction_id: 예측 ID
+        - prediction_time: 예측 시간
         - probabilities: 기업별 확률 (퍼센트)
         - top_company: 가장 높은 확률의 기업
         - top_probability: 가장 높은 확률
@@ -101,11 +111,19 @@ class AnalyzeProbabilityResource(Resource):
             # 가장 높은 확률의 기업 찾기
             top_company = max(probabilities.items(), key=lambda x: x[1])
             
+            # 예측 ID와 시간 생성
+            prediction_id = str(uuid.uuid4())
+            prediction_time = datetime.now().isoformat()
+            
             response_data = {
-                'success': True,
+                'user_id': request_data.get('user_id'),
+                'recruitment_id': request_data.get('recruitment_id'),
+                'job_category': request_data.get('job_category'),
+                'prediction_id': prediction_id,
+                'prediction_time': prediction_time,
                 'probabilities': probabilities,
                 'top_company': top_company[0],
-                'top_probability': top_company[1],
+                'top_probability': float(top_company[1]),
                 'message': '분석이 완료되었습니다.'
             }
             

@@ -1,5 +1,6 @@
 import joblib
 import pandas as pd
+import numpy as np
 import logging
 import os
 from typing import Dict, List, Any, Optional
@@ -16,11 +17,24 @@ class AIModelService:
         self.model_loaded = False
         self.models_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'models')
         
-        # 사후 가중치 설정
+        # 사후 가중치 설정 (세종대 우대)
         self.post_weights = {
             '삼성전자': 1.3,
             'LG전자': 1.2,
             '현대자동차': 1.2
+        }
+        
+        # 유사도 점수 설정
+        self.similarity_scores = {
+            '삼성전자': 0.287,
+            'SK하이닉스': 0.311,
+            'SK이노베이션': 0.1,
+            'LG전자': 0.1,
+            '현대자동차': 0.311,
+            '롯데': 0.01,
+            'KT': 0.01,
+            '포스코': 0.05,
+            'CJ': 0.01
         }
     
     def load_model(self) -> bool:
@@ -94,27 +108,46 @@ class AIModelService:
                 '수상경험점수': user_data['award_score']
             }])
             
-            # 원래 예측 확률
+            # 1. 원래 예측 확률
             probas = self.model.predict_proba(new_input)[0]
             
-            # 가중치 적용 및 정규화
+            # numpy float32를 Python float로 변환
+            probas = [float(prob) for prob in probas]
+            
+            # 2. 사후 가중치 적용 (세종대 우대)
             adjusted = []
+            xgb_probs = {}
             for i, prob in enumerate(probas):
                 company = self.label_reverse_map[i]
                 weight = self.post_weights.get(company, 1.0)  # 기본값 1.0
-                adjusted.append((company, prob * weight))
+                adjusted_prob = prob * weight
+                adjusted.append((company, adjusted_prob))
+                xgb_probs[company] = adjusted_prob  # 세종대 보정 후 확률 저장
             
-            # 정규화
-            total = sum(prob for _, prob in adjusted)
-            normalized = [(company, prob / total * 100) for company, prob in adjusted]
+            # 3. 정규화 (합이 1이 되도록)
+            total_adjusted = sum(p for _, p in adjusted)
+            xgb_probs = {company: p / total_adjusted for company, p in xgb_probs.items()}
+            
+            # 4. 유사도 가중치 적용
+            adjusted_scores = {
+                company: xgb_probs[company] * self.similarity_scores.get(company, 0.01)
+                for company in xgb_probs
+            }
+            
+            # 5. 정규화
+            total_sim = sum(adjusted_scores.values())
+            normalized_scores = {
+                company: (score / total_sim) * 100
+                for company, score in adjusted_scores.items()
+            }
             
             # 내림차순 정렬
-            sorted_results = sorted(normalized, key=lambda x: x[1], reverse=True)
+            sorted_results = sorted(normalized_scores.items(), key=lambda x: x[1], reverse=True)
             
-            # 딕셔너리로 변환
-            result = {company: round(prob, 2) for company, prob in sorted_results}
+            # 딕셔너리로 변환 (float 타입으로 확실히 변환)
+            result = {company: float(round(prob, 2)) for company, prob in sorted_results}
             
-            logger.info(f"예측 완료: {len(result)}개 기업")
+            logger.info(f"예측 완료: {len(result)}개 기업 (유사도 점수 반영)")
             return result
             
         except Exception as e:
@@ -172,8 +205,9 @@ class AIModelService:
             'model_loaded': self.model_loaded,
             'model_path': os.path.join(self.models_dir, 'xgb_model.pkl'),
             'label_map_path': os.path.join(self.models_dir, 'label_map.pkl'),
-            'model_type': 'XGBoost',
-            'version': '1.0',
+            'model_type': 'XGBoost with Similarity Score',
+            'version': '2.0',
             'post_weights': self.post_weights,
+            'similarity_scores': self.similarity_scores,
             'companies_count': len(self.label_reverse_map) if self.label_reverse_map else 0
         } 

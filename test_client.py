@@ -3,8 +3,9 @@ import json
 import os
 from datetime import datetime
 
-# Flask 서비스 URL
+# API 기본 URL
 BASE_URL = "http://localhost:5002"
+SPRING_URL = "https://172.16.88.105:8443"
 
 class CareerAITestClient:
     """CareerAI 백엔드 테스트 클라이언트"""
@@ -282,156 +283,89 @@ class CareerAITestClient:
         
         print("\n🎉 모든 테스트 완료!")
 
-def test_health_check():
-    """헬스 체크 테스트"""
+def test_spring_integration():
+    """스프링 서버와의 통합 테스트"""
+    print("=== 스프링 서버 통합 테스트 ===")
+    
     try:
-        response = requests.get(f"{BASE_URL}/health")
-        print("헬스 체크 결과:")
-        print(f"상태 코드: {response.status_code}")
-        print(f"응답: {response.json()}")
-        print("-" * 50)
+        # 스프링 서버 상태 확인
+        response = requests.get(f"{SPRING_URL}/swagger-ui/index.html", verify=False)
+        if response.status_code == 200:
+            print("✅ 스프링 서버 연결 성공!")
+        else:
+            print(f"❌ 스프링 서버 연결 실패: {response.status_code}")
+            
     except Exception as e:
-        print(f"헬스 체크 실패: {e}")
+        print(f"❌ 스프링 서버 연결 오류: {str(e)}")
 
-def test_text_to_pdf():
-    """텍스트를 PDF로 변환하는 테스트"""
+def test_flask_to_spring_communication():
+    """Flask에서 스프링으로 데이터 전송 테스트"""
+    print("\n=== Flask → 스프링 통신 테스트 ===")
+    
+    # Flask에서 생성한 이력서 데이터
+    resume_data = {
+        "phone": "010-1234-5678",
+        "email": "test@example.com",
+        "introduction": "열정적인 개발자입니다.",
+        "experiences": [
+            {
+                "company": "네이버",
+                "start_date": "2021.03",
+                "end_date": "2023.05",
+                "position": "백엔드 개발자",
+                "description": "Spring Boot를 사용한 웹 서비스 개발"
+            }
+        ],
+        "skills": [
+            {"name": "Spring Boot", "level": "상"},
+            {"name": "Java", "level": "상"},
+            {"name": "MySQL", "level": "중"}
+        ],
+        "links": [
+            {"type": "github", "url": "https://github.com/test"},
+            {"type": "blog", "url": "https://blog.test.com"}
+        ],
+        "awards": [],
+        "certificates": [],
+        "languages": [],
+        "projects": []
+    }
+    
+    # 스프링 서버로 전송할 데이터 형식
+    spring_data = {
+        "user_id": 1,
+        "recruitment_id": 101,
+        "job_category": "백엔드",
+        "age": 27,
+        "school": 3,           # 4년제
+        "major": 1,            # 컴퓨터공학
+        "gpa": 3.7,
+        "language_score": 850, # 토익
+        "activity_score": 2,   # 대외활동
+        "internship_score": 1, # 인턴
+        "award_score": 1       # 수상
+    }
+    
     try:
-        # 테스트용 이력서 데이터
-        resume_data = {
-            "name": "John Doe",
-            "email": "john@example.com",
-            "phone": "010-1234-5678",
-            "address": "123 Main Street, Seoul, Korea",
-            "education": [
-                {
-                    "school": "Seoul National University",
-                    "period": "2018-2022",
-                    "major": "Computer Science",
-                    "degree": "Bachelor's Degree"
-                },
-                {
-                    "school": "Seoul High School",
-                    "period": "2015-2018",
-                    "major": "Science",
-                    "degree": "Graduation"
-                }
-            ],
-            "experience": [
-                {
-                    "company": "Tech Solutions",
-                    "period": "2022-2023",
-                    "position": "Backend Developer",
-                    "description": "Developed and maintained web applications using Spring Boot"
-                },
-                {
-                    "company": "Startup XYZ",
-                    "period": "2021-2022",
-                    "position": "Intern Developer",
-                    "description": "Developed web services using Python Django"
-                }
-            ],
-            "skills": ["Java", "Spring Boot", "Python", "Django", "JavaScript", "React", "MySQL", "PostgreSQL"],
-            "introduction": "Passionate developer who wants to create user-centered services. I love learning new technologies and value teamwork."
-        }
-        
-        print("텍스트를 PDF로 변환 테스트:")
-        print(f"전송할 데이터: {json.dumps(resume_data, ensure_ascii=False, indent=2)}")
-        
+        # 스프링 서버로 데이터 전송 (예시)
+        # 실제 엔드포인트는 스프링 서버의 API에 맞게 수정 필요
         response = requests.post(
-            f"{BASE_URL}/text-to-pdf",
-            json=resume_data,
-            headers={'Content-Type': 'application/json'}
+            f"{SPRING_URL}/api/predictions",
+            json=spring_data,
+            headers={'Content-Type': 'application/json'},
+            verify=False
         )
         
         if response.status_code == 200:
-            # PDF 파일 저장
-            with open("test_resume.pdf", "wb") as f:
-                f.write(response.content)
-            print(f"PDF 생성 성공! 파일명: test_resume.pdf")
-            print(f"파일 크기: {len(response.content)} bytes")
+            result = response.json()
+            print("✅ 스프링 서버로 데이터 전송 성공!")
+            print(f"응답: {result}")
         else:
-            print(f"PDF 생성 실패: {response.status_code}")
-            print(f"에러 메시지: {response.text}")
-        
-        print("-" * 50)
-        
+            print(f"❌ 스프링 서버로 데이터 전송 실패: {response.status_code}")
+            print(response.text)
+            
     except Exception as e:
-        print(f"텍스트를 PDF로 변환 테스트 실패: {e}")
-
-def test_convert_resume_with_json():
-    """통합 API로 JSON 데이터 전송 테스트"""
-    try:
-        resume_data = {
-            "name": "Jane Smith",
-            "email": "jane@example.com",
-            "phone": "010-9876-5432",
-            "address": "456 Oak Avenue, Busan, Korea",
-            "education": [
-                {
-                    "school": "Busan National University",
-                    "period": "2019-2023",
-                    "major": "Software Engineering",
-                    "degree": "Bachelor's Degree"
-                }
-            ],
-            "experience": [
-                {
-                    "company": "IT Company",
-                    "period": "2023-Present",
-                    "position": "Frontend Developer",
-                    "description": "Developed web applications using React and Vue.js"
-                }
-            ],
-            "skills": ["JavaScript", "React", "Vue.js", "HTML", "CSS", "Node.js"],
-            "introduction": "Frontend developer who values user experience."
-        }
-        
-        print("통합 API JSON 테스트:")
-        
-        response = requests.post(
-            f"{BASE_URL}/convert-resume",
-            json=resume_data,
-            headers={'Content-Type': 'application/json'}
-        )
-        
-        if response.status_code == 200:
-            with open("test_resume_integrated.pdf", "wb") as f:
-                f.write(response.content)
-            print(f"통합 API PDF 생성 성공! 파일명: test_resume_integrated.pdf")
-        else:
-            print(f"통합 API 실패: {response.status_code}")
-            print(f"에러 메시지: {response.text}")
-        
-        print("-" * 50)
-        
-    except Exception as e:
-        print(f"통합 API 테스트 실패: {e}")
-
-def test_content_type_validation():
-    """Content-Type 검증 테스트"""
-    try:
-        print("Content-Type 검증 테스트:")
-        
-        # 잘못된 Content-Type으로 JSON 엔드포인트 호출
-        response = requests.post(
-            f"{BASE_URL}/text-to-pdf",
-            data="invalid data",
-            headers={'Content-Type': 'text/plain'}
-        )
-        print(f"잘못된 Content-Type 테스트: {response.status_code} - {response.json()}")
-        
-        # 잘못된 Content-Type으로 파일 업로드 엔드포인트 호출
-        response = requests.post(
-            f"{BASE_URL}/pdf-to-text",
-            data="invalid data",
-            headers={'Content-Type': 'text/plain'}
-        )
-        print(f"잘못된 Content-Type 테스트: {response.status_code} - {response.json()}")
-        
-        print("-" * 50)
-        
-    except Exception as e:
-        print(f"Content-Type 검증 테스트 실패: {e}")
+        print(f"❌ 통신 오류: {str(e)}")
 
 def test_pdf_text_extraction():
     """PDF 텍스트 추출 테스트"""
@@ -654,6 +588,12 @@ def main():
     
     # 헬스 체크
     test_health_check()
+    
+    # 스프링 서버 통합 테스트
+    test_spring_integration()
+    
+    # Flask → 스프링 통신 테스트
+    test_flask_to_spring_communication()
     
     # PDF 텍스트 추출 테스트
     test_pdf_text_extraction()
