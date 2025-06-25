@@ -1,182 +1,209 @@
-# 모듈화된 이력서 PDF 변환 서비스
+# CareerAI 백엔드 서비스
 
-Spring 백엔드와 통신하는 Flask 기반 이력서 PDF 변환 서비스입니다. 코드가 기능별로 모듈화되어 있어 유지보수와 확장이 용이합니다.
+Flask 기반의 이력서 PDF 변환 및 기업 확률 예측 서비스입니다.
+
+## 주요 기능
+
+### 1. 이력서 PDF 변환
+- JSON 데이터를 기반으로 이력서 PDF 생성
+- 한글 폰트 지원 (macOS 기본 폰트 사용)
+- ReportLab을 사용한 고품질 PDF 생성
+
+### 2. 기업 확률 예측
+- 사용자 프로필 데이터를 기반으로 기업 입사 확률 예측
+- 머신러닝 모델 연동 구조 제공
+- 예측 결과에 따른 개인화된 추천사항 제공
 
 ## 프로젝트 구조
 
 ```
 carrerAI_AI/
-├── app.py                 # 기존 단일 파일 앱
-├── app_new.py            # 새로운 모듈화된 앱
-├── test_client.py        # 기존 테스트 클라이언트
-├── test_client_new.py    # 새로운 테스트 클라이언트
-├── requirements.txt      # 의존성 파일
-├── config/              # 설정 관련
-│   ├── __init__.py
-│   └── settings.py      # 애플리케이션 설정
-├── services/            # 비즈니스 로직
-│   ├── __init__.py
-│   └── pdf_service.py   # PDF 관련 서비스
-├── utils/               # 유틸리티 함수들
-│   ├── __init__.py
-│   └── file_utils.py    # 파일 관련 유틸리티
-├── routes/              # API 라우트들
-│   ├── __init__.py
-│   └── pdf_routes.py    # PDF 관련 API 라우트
-└── uploads/             # 업로드된 파일 저장소
+├── app.py                 # 메인 애플리케이션
+├── test_client.py         # 테스트 클라이언트
+├── requirements.txt       # 의존성 목록
+├── config/               # 설정 파일
+│   └── settings.py
+├── services/             # 비즈니스 로직
+│   ├── pdf_service.py    # PDF 변환 서비스
+│   └── prediction_service.py  # 예측 서비스
+├── routes/               # API 라우트
+│   ├── pdf_routes.py     # PDF 관련 API
+│   ├── prediction_routes.py  # 예측 관련 API
+│   └── swagger_routes.py # Swagger 문서
+├── utils/                # 유틸리티
+│   └── helpers.py
+├── models/               # 머신러닝 모델 (추후 추가)
+└── uploads/              # 업로드 파일 저장소
 ```
-
-## 주요 기능
-
-### 1. PDF 텍스트 추출
-- PDF 파일을 업로드하여 텍스트로 변환
-- `pdfplumber` 라이브러리 사용
-
-### 2. 이력서 PDF 생성
-- JSON 형태의 이력서 데이터를 받아 PDF로 변환
-- `reportlab` 라이브러리 사용
-- 기본 폰트(Helvetica) 사용으로 호환성 확보
-
-### 3. 통합 API
-- JSON 데이터 또는 파일 업로드 모두 지원
-- Content-Type에 따라 자동 처리
 
 ## 설치 및 실행
 
-### 1. 가상환경 설정
+### 1. 환경 설정
 ```bash
+# 가상환경 생성 및 활성화
 python -m venv venv
 source venv/bin/activate  # macOS/Linux
-# 또는
-venv\Scripts\activate     # Windows
-```
+# venv\Scripts\activate  # Windows
 
-### 2. 의존성 설치
-```bash
+# 의존성 설치
 pip install -r requirements.txt
 ```
 
-### 3. 서비스 실행
-
-#### 기존 단일 파일 버전
+### 2. 서버 실행
 ```bash
 python app.py
 ```
 
-#### 새로운 모듈화된 버전
-```bash
-python app_new.py
-```
+서버가 `http://localhost:5000`에서 실행됩니다.
 
-### 4. 테스트 실행
+### 3. 테스트 실행
 ```bash
-# 기존 테스트
 python test_client.py
-
-# 새로운 테스트
-python test_client_new.py
 ```
+
+## API 문서
+
+Swagger UI를 통해 API 문서를 확인할 수 있습니다:
+- URL: `http://localhost:5000/docs`
 
 ## API 엔드포인트
 
-### 헬스 체크
-```
-GET /health
-```
+### PDF 변환 API
 
-### PDF 텍스트 추출
-```
-POST /pdf-to-text
-Content-Type: multipart/form-data
-```
+#### POST /api/pdf/convert
+JSON 데이터를 이력서 PDF로 변환합니다.
 
-### 이력서 PDF 생성
-```
-POST /text-to-pdf
-Content-Type: application/json
-```
-
-### 통합 이력서 변환
-```
-POST /convert-resume
-Content-Type: application/json 또는 multipart/form-data
+**요청 예시:**
+```json
+{
+  "name": "홍길동",
+  "age": 28,
+  "experience": 3.5,
+  "skills": ["Python", "Flask", "React", "Docker"],
+  "education": "컴퓨터공학과 졸업",
+  "etc": "프로젝트 경험 다수"
+}
 ```
 
-## 설정
+**응답:** PDF 파일 (binary)
 
-`config/settings.py`에서 다음 설정을 변경할 수 있습니다:
+### 기업 확률 예측 API
 
-- **포트**: `PORT = 5002`
-- **호스트**: `HOST = '0.0.0.0'`
-- **최대 파일 크기**: `MAX_CONTENT_LENGTH = 16MB`
-- **PDF 폰트**: `PDF_FONT_NAME = 'Helvetica'`
+#### POST /api/prediction/predict
+사용자 데이터를 기반으로 기업 입사 확률을 예측합니다.
 
-## 모듈화의 장점
+**요청 예시:**
+```json
+{
+  "name": "김개발",
+  "age": 25,
+  "experience": 2.0,
+  "skills": ["Java", "Spring", "MySQL"],
+  "education": "정보통신공학과 졸업",
+  "etc": "스타트업 경험 1년"
+}
+```
 
-### 1. 유지보수성
-- 기능별로 코드가 분리되어 있어 수정이 용이
-- 각 모듈의 책임이 명확히 구분됨
+**응답 예시:**
+```json
+{
+  "success": true,
+  "probability": 0.75,
+  "confidence": 0.85,
+  "recommendations": [
+    "포트폴리오를 더욱 다양화해보세요",
+    "최신 기술 트렌드를 학습하세요",
+    "자기소개서를 개선해보세요"
+  ],
+  "user_data": {
+    "name": "김개발",
+    "age": 25,
+    "experience": 2.0,
+    "skills": ["Java", "Spring", "MySQL"],
+    "education": "정보통신공학과 졸업",
+    "etc": "스타트업 경험 1년"
+  }
+}
+```
 
-### 2. 확장성
-- 새로운 기능 추가 시 해당 모듈만 수정
-- 다른 서비스 추가 시 새로운 서비스 클래스 생성
+#### GET /api/prediction/model/info
+현재 로드된 모델의 정보를 조회합니다.
 
-### 3. 테스트 용이성
-- 각 모듈을 독립적으로 테스트 가능
-- 단위 테스트 작성이 쉬움
+**응답 예시:**
+```json
+{
+  "model_loaded": true,
+  "model_path": "models/",
+  "model_type": "기업 확률 예측 모델",
+  "version": "1.0.0"
+}
+```
 
-### 4. 재사용성
-- 서비스 클래스들을 다른 프로젝트에서 재사용 가능
-- 설정을 다른 환경에 맞게 쉽게 변경
+#### POST /api/prediction/model/load
+예측 모델을 로드합니다.
 
-## 새로운 기능 추가 방법
+**파라미터:**
+- `model_name` (선택): 모델 파일명
 
-### 1. 새로운 서비스 추가
+#### GET /api/prediction/health
+예측 서비스의 상태를 확인합니다.
+
+**응답 예시:**
+```json
+{
+  "status": "healthy",
+  "model_loaded": true,
+  "service": "prediction_service"
+}
+```
+
+## 모델 연동
+
+### 현재 상태
+- 예측 서비스 구조가 구현되어 있습니다
+- 임시 예측 로직이 포함되어 있습니다
+- 실제 머신러닝 모델은 추후 추가 예정입니다
+
+### 모델 추가 방법
+1. `models/` 디렉토리에 모델 파일을 추가
+2. `services/prediction_service.py`의 `load_model()` 메서드에서 실제 모델 로드 로직 구현
+3. `predict_company_probability()` 메서드에서 실제 예측 로직 구현
+
+### 예시 모델 로드 코드
 ```python
-# services/new_service.py
-class NewService:
-    @staticmethod
-    def new_function():
-        # 새로운 기능 구현
-        pass
+# joblib을 사용한 경우
+import joblib
+self.model = joblib.load(f"{self.model_path}/{model_name}")
+
+# pickle을 사용한 경우
+import pickle
+with open(f"{self.model_path}/{model_name}", 'rb') as f:
+    self.model = pickle.load(f)
 ```
 
-### 2. 새로운 라우트 추가
-```python
-# routes/new_routes.py
-from flask import Blueprint
+## 개발 환경
 
-new_bp = Blueprint('new', __name__)
+- Python 3.8+
+- Flask 3.0.0
+- ReportLab 4.0.7
+- Flask-RESTX 1.3.0
 
-@new_bp.route('/new-endpoint', methods=['GET'])
-def new_endpoint():
-    # 새로운 엔드포인트 구현
-    pass
-```
+## 배포
 
-### 3. 메인 앱에 등록
-```python
-# app_new.py
-from routes.new_routes import new_bp
-
-app.register_blueprint(new_bp)
-```
-
-## 환경 변수
-
-다음 환경 변수를 설정할 수 있습니다:
-
-- `SECRET_KEY`: Flask 시크릿 키
-- `DEBUG`: 디버그 모드 (True/False)
-- `HOST`: 서버 호스트
-- `PORT`: 서버 포트
-
-## Docker 실행
-
+### Docker 사용
 ```bash
-docker-compose up --build
+# 이미지 빌드
+docker build -t careerai-backend .
+
+# 컨테이너 실행
+docker run -p 5000:5000 careerai-backend
+```
+
+### Docker Compose 사용
+```bash
+docker-compose up -d
 ```
 
 ## 라이센스
 
-MIT License 
+이 프로젝트는 MIT 라이센스 하에 배포됩니다. 
