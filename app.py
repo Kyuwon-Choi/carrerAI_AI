@@ -4,6 +4,7 @@ from flask_restx import Api
 from config.settings import Config
 from routes.pdf_routes import api as pdf_api
 from routes.prediction_routes import api as prediction_api
+from routes.ai_routes import api as ai_api
 from services.pdf_service import PDFService
 from services.resume_parser_service import ResumeParserService
 from utils.file_utils import allowed_file
@@ -57,8 +58,61 @@ def create_app():
     # API 네임스페이스 등록
     api.add_namespace(pdf_api, path='/documents')
     api.add_namespace(prediction_api, path='/predictions')
+    api.add_namespace(ai_api, path='/ai')
     
     # 기존 URL과의 호환성을 위한 추가 라우트
+    @app.route('/analyze-probability', methods=['POST'])
+    def legacy_analyze_probability():
+        """
+        스프링과의 호환성을 위한 기업 확률 분석 엔드포인트
+        """
+        try:
+            # JSON 데이터 파싱
+            request_data = request.get_json()
+            
+            if not request_data:
+                return {
+                    'error': '요청 데이터가 없습니다.',
+                    'code': 'MISSING_DATA',
+                    'details': 'JSON 데이터를 제공해주세요.'
+                }, 400
+            
+            # AI 모델 서비스 임포트
+            from services.ai_model_service import AIModelService
+            ai_service = AIModelService()
+            
+            # AI 모델이 로드되지 않았다면 로드 시도
+            if not ai_service.model_loaded:
+                if not ai_service.load_model():
+                    return {
+                        'error': 'AI 모델을 로드할 수 없습니다.',
+                        'code': 'MODEL_LOAD_FAILED',
+                        'details': '모델 파일을 확인해주세요.'
+                    }, 500
+            
+            # 예측 수행
+            probabilities = ai_service.predict_company_probabilities(request_data)
+            
+            # 가장 높은 확률의 기업 찾기
+            top_company = max(probabilities.items(), key=lambda x: x[1])
+            
+            response_data = {
+                'success': True,
+                'probabilities': probabilities,
+                'top_company': top_company[0],
+                'top_probability': top_company[1],
+                'message': '분석이 완료되었습니다.'
+            }
+            
+            return response_data, 200
+                
+        except Exception as e:
+            return {
+                'error': '분석 중 오류가 발생했습니다.',
+                'code': 'ANALYSIS_ERROR',
+                'details': str(e)
+            }, 500
+
     @app.route('/documents/convert', methods=['POST'])
     def legacy_document_convert():
         """
